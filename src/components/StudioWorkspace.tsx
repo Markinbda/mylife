@@ -1265,16 +1265,22 @@ export default function StudioWorkspace({
                     type="button"
                     onClick={() => void toggleRecording()}
                     aria-label={isRecording ? "Stop recording" : "Start recording"}
+                    disabled={isTranscribing}
                     className={`flex h-24 w-24 items-center justify-center rounded-full text-white shadow-lg transition-all ${
                       isRecording
                         ? "bg-[#7a1a10] hover:bg-[#5e140b] animate-pulse"
-                        : "bg-[#c2241a] hover:bg-[#a01a12]"
+                        : isTranscribing
+                          ? "bg-[#c2241a] animate-pulse [animation-duration:1.8s] cursor-wait"
+                          : "bg-[#c2241a] hover:bg-[#a01a12]"
                     }`}
                   >
                     <span className="text-5xl">{isRecording ? "⏹" : "🎤"}</span>
                   </button>
                   {isRecording && (
                     <span className="text-sm font-semibold text-[#a54136]">Recording: {formatTime(recordingTime)}</span>
+                  )}
+                  {isTranscribing && !isRecording && (
+                    <span className="text-sm font-semibold text-[#8e7f6f]">Transcribing…</span>
                   )}
                   {recordingError && <span className="text-xs text-[#a54136]">{recordingError}</span>}
                 </div>
