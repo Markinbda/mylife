@@ -36,6 +36,12 @@ type ChatMessage = {
   content: string;
 };
 
+type ConversationRow = {
+  role: "guide" | "user";
+  content: string;
+  created_at: string;
+};
+
 const defaultStoryTitles = [
   "The beginning",
   "Childhood",
@@ -98,13 +104,12 @@ export default function StudioWorkspace({
   const profile = getGuideProfile(guide);
 
   const [userId, setUserId] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState("");
   const [loadingData, setLoadingData] = useState(true);
   const [dbError, setDbError] = useState("");
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [selectedChapterId, setSelectedChapterId] = useState("");
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { role: "guide", content: openingByGuide[guide] ?? openingByGuide.friend },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [playingIntro, setPlayingIntro] = useState(false);
   const [voiceError, setVoiceError] = useState("");
@@ -132,6 +137,31 @@ export default function StudioWorkspace({
   const suggestedTopics = useMemo(
     () => buildSuggestedTopics(selectedChapter?.title ?? "this chapter"),
     [selectedChapter?.title],
+  );
+
+  const firstName = useMemo(() => {
+    const trimmed = displayName.trim();
+    return trimmed ? trimmed.split(/\s+/)[0] : "";
+  }, [displayName]);
+
+  const openingMessage = useMemo(() => {
+    const base = openingByGuide[guide] ?? openingByGuide.friend;
+    return firstName ? `${firstName}, ${base}` : base;
+  }, [firstName, guide]);
+
+  const persistConversationMessage = useCallback(
+    async (chapterId: string, message: ChatMessage) => {
+      if (!supabase || !userId || !chapterId) return;
+
+      await supabase.from("chapter_conversations").insert({
+        user_id: userId,
+        chapter_id: chapterId,
+        guide_id: guide,
+        role: message.role,
+        content: message.content,
+      });
+    },
+    [guide, supabase, userId],
   );
 
   const hydrateChapters = useCallback(async (uid: string, laneValue: string) => {
@@ -255,6 +285,16 @@ export default function StudioWorkspace({
         return;
       }
 
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (active) {
+        setDisplayName(profileRow?.full_name?.trim() ?? "");
+      }
+
       setUserId(user.id);
       await hydrateChapters(user.id, lane);
 
@@ -269,6 +309,53 @@ export default function StudioWorkspace({
       active = false;
     };
   }, [hydrateChapters, lane, router, supabase]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadConversationHistory = async () => {
+      if (!supabase || !userId || !selectedChapterId) {
+        if (active) {
+          setChatMessages([{ role: "guide", content: openingMessage }]);
+        }
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("chapter_conversations")
+        .select("role, content, created_at")
+        .eq("user_id", userId)
+        .eq("chapter_id", selectedChapterId)
+        .order("created_at", { ascending: true });
+
+      if (!active) return;
+
+      if (error) {
+        setChatMessages([{ role: "guide", content: openingMessage }]);
+        return;
+      }
+
+      const history = ((data ?? []) as ConversationRow[]).map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
+
+      if (history.length > 0) {
+        setChatMessages(history);
+        return;
+      }
+
+      const initialMessage = { role: "guide", content: openingMessage } as const;
+      setChatMessages([initialMessage]);
+      await persistConversationMessage(selectedChapterId, initialMessage);
+    };
+
+    void loadConversationHistory();
+
+    return () => {
+      active = false;
+    };
+  }, [openingMessage, persistConversationMessage, selectedChapterId, supabase, userId]);
 
   const appendEntryToChapter = async (entry: string) => {
     const trimmed = entry.trim();
@@ -296,16 +383,23 @@ export default function StudioWorkspace({
 
   const sendToGuide = async () => {
     const text = chatInput.trim();
-    if (!text) return;
+    if (!text || !selectedChapterId) return;
 
-    setChatMessages((prev) => [...prev, { role: "user", content: text }]);
+    const userMessage: ChatMessage = { role: "user", content: text };
+    setChatMessages((prev) => [...prev, userMessage]);
+    await persistConversationMessage(selectedChapterId, userMessage);
     await appendEntryToChapter(text);
 
     const nextFollowUp = followUps[Math.floor(Math.random() * followUps.length)];
+    const guideMessage: ChatMessage = {
+      role: "guide",
+      content: `${firstName ? `${firstName}, ` : ""}${nextFollowUp} I can suggest another prompt when you are ready.`,
+    };
     setChatMessages((prev) => [
       ...prev,
-      { role: "guide", content: `${nextFollowUp} I can suggest another prompt when you are ready.` },
+      guideMessage,
     ]);
+    await persistConversationMessage(selectedChapterId, guideMessage);
     setChatInput("");
   };
 
@@ -384,13 +478,17 @@ export default function StudioWorkspace({
       };
 
       await audio.play();
+      const guideMessage: ChatMessage = {
+        role: "guide",
+        content: `${firstName ? `${firstName}, ` : ""}here are some ideas for ${chapterTitle}: ${suggestedTopics.join(" ")}`,
+      };
       setChatMessages((prev) => [
         ...prev,
-        {
-          role: "guide",
-          content: `Here are some ideas for ${chapterTitle}: ${suggestedTopics.join(" ")}`,
-        },
+        guideMessage,
       ]);
+      if (selectedChapterId) {
+        await persistConversationMessage(selectedChapterId, guideMessage);
+      }
     } catch (error) {
       setVoiceError(error instanceof Error ? error.message : "Could not play guide intro.");
       setPlayingIntro(false);
