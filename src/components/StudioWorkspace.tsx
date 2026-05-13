@@ -143,6 +143,7 @@ export default function StudioWorkspace({
   const [playingIntro, setPlayingIntro] = useState(false);
   const [voiceError, setVoiceError] = useState("");
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [isMicPickerOpen, setIsMicPickerOpen] = useState(false);
   const [chapterSearch, setChapterSearch] = useState("");
   const [showSuggestedChapterPicker, setShowSuggestedChapterPicker] = useState(false);
   const [selectedSuggestedTitles, setSelectedSuggestedTitles] = useState<string[]>(defaultStoryTitles.slice(0, 4));
@@ -1138,42 +1139,45 @@ export default function StudioWorkspace({
               </div>
 
               {/* Action buttons and response area */}
-              <div className="sticky bottom-0 mt-4 space-y-4 border-t border-[#e8dfd4] bg-[#f7f5f1] pt-4">
-                {/* Action buttons */}
-                <div className="flex justify-center gap-8">
+              <div className="sticky bottom-0 mt-4 space-y-4 border-t border-[#e8dfd4] bg-[#f7f5f1] pt-4 pb-10">
+                {/* Action buttons - compact flat row */}
+                <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-2 text-sm text-[#6c6255]">
+                  <span className="font-semibold">Add a story through</span>
                   <button
                     type="button"
                     onClick={() => setIsComposerOpen((prev) => !prev)}
-                    className={`flex flex-col items-center gap-2 transition-colors ${
-                      isComposerOpen ? "text-[#6c6255]" : "text-[#8e7f6f] hover:text-[#6c6255]"
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 transition-colors ${
+                      isComposerOpen
+                        ? "border-[#b89a75] bg-[#f6ede0] text-[#3f3328]"
+                        : "border-[#dcc6a4] bg-white hover:bg-[#faf6ef]"
                     }`}
                   >
-                    <div className={`rounded-lg border px-4 py-3 ${
-                      isComposerOpen ? "border-[#b89a75] bg-[#f6ede0]" : "border-[#dcc6a4] bg-white"
-                    }`}>
-                      <span className="text-xl">⌨️</span>
-                    </div>
-                    <span className="text-xs font-semibold">Keyboard</span>
+                    <span>⌨️</span>
+                    <span className="font-semibold">Keyboard</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center gap-2 text-[#8e7f6f] hover:text-[#6c6255]"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#dcc6a4] bg-white px-3 py-1 hover:bg-[#faf6ef]"
                   >
-                    <div className="rounded-lg border border-[#dcc6a4] bg-white px-4 py-3">
-                      <span className="text-xl">📸</span>
-                    </div>
-                    <span className="text-xs font-semibold">Photo</span>
+                    <span>📸</span>
+                    <span className="font-semibold">Photo</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => void toggleRecording()}
-                    className="flex flex-col items-center gap-2 text-[#8e7f6f] hover:text-[#6c6255]"
+                    onClick={() => {
+                      setIsMicPickerOpen((prev) => !prev);
+                      if (!isMicPickerOpen) void loadMicDevices();
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 transition-colors ${
+                      isMicPickerOpen
+                        ? "border-[#b89a75] bg-[#f6ede0] text-[#3f3328]"
+                        : "border-[#dcc6a4] bg-white hover:bg-[#faf6ef]"
+                    }`}
+                    title="Choose microphone"
                   >
-                    <div className="rounded-lg border border-[#dcc6a4] bg-white px-4 py-3">
-                      <span className="text-xl">📝</span>
-                    </div>
-                    <span className="text-xs font-semibold">Transcript</span>
+                    <span>🎤</span>
+                    <span className="font-semibold">Mic</span>
                   </button>
                 </div>
 
@@ -1213,29 +1217,31 @@ export default function StudioWorkspace({
                   </div>
                 )}
 
-                <div className="mx-auto flex max-w-2xl items-center gap-2 rounded-xl border border-[#e4dacd] bg-white px-3 py-2 text-xs text-[#6a5f52]">
-                  <label htmlFor="studio-mic-select" className="font-semibold">Microphone</label>
-                  <select
-                    id="studio-mic-select"
-                    value={selectedMicValue}
-                    onChange={(event) => setSelectedMicId(event.target.value)}
-                    className="min-w-0 flex-1 rounded-md border border-[#dccfbf] bg-white px-2 py-1 text-xs text-[#4e4438]"
-                  >
-                    <option value="">Default microphone</option>
-                    {micDevices.map((device) => (
-                      <option key={device.deviceId} value={device.deviceId}>
-                        {device.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => void loadMicDevices()}
-                    className="rounded-md border border-[#dccfbf] px-2 py-1 text-[#6a5f52] hover:bg-[#f6f1e9]"
-                  >
-                    Refresh
-                  </button>
-                </div>
+                {isMicPickerOpen && (
+                  <div className="mx-auto flex max-w-2xl items-center gap-2 rounded-xl border border-[#e4dacd] bg-white px-3 py-2 text-xs text-[#6a5f52]">
+                    <label htmlFor="studio-mic-select" className="font-semibold">Microphone</label>
+                    <select
+                      id="studio-mic-select"
+                      value={selectedMicValue}
+                      onChange={(event) => setSelectedMicId(event.target.value)}
+                      className="min-w-0 flex-1 rounded-md border border-[#dccfbf] bg-white px-2 py-1 text-xs text-[#4e4438]"
+                    >
+                      <option value="">Default microphone</option>
+                      {micDevices.map((device) => (
+                        <option key={device.deviceId} value={device.deviceId}>
+                          {device.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => void loadMicDevices()}
+                      className="rounded-md border border-[#dccfbf] px-2 py-1 text-[#6a5f52] hover:bg-[#f6f1e9]"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                )}
 
                 {transcriptionConfigured !== null && (
                   <div className="mx-auto max-w-2xl text-xs">
@@ -1253,27 +1259,24 @@ export default function StudioWorkspace({
                   </div>
                 )}
 
-                {/* Mic and Save buttons */}
-                <div className="flex items-center justify-center gap-4">
+                {/* Large record button + status + Save */}
+                <div className="flex flex-wrap items-center justify-center gap-4">
                   <button
                     type="button"
                     onClick={() => void toggleRecording()}
-                    className={`rounded-full p-4 text-white transition-all ${
-                      isRecording ? "bg-[#a54136] hover:bg-[#8b3429] animate-pulse" : "bg-[#74a8a4] hover:bg-[#5f8f8a]"
+                    aria-label={isRecording ? "Stop recording" : "Start recording"}
+                    className={`flex h-24 w-24 items-center justify-center rounded-full text-white shadow-lg transition-all ${
+                      isRecording
+                        ? "bg-[#7a1a10] hover:bg-[#5e140b] animate-pulse"
+                        : "bg-[#c2241a] hover:bg-[#a01a12]"
                     }`}
                   >
-                    <span className="text-2xl">🎤</span>
+                    <span className="text-5xl">{isRecording ? "⏹" : "🎤"}</span>
                   </button>
                   {isRecording && (
                     <span className="text-sm font-semibold text-[#a54136]">Recording: {formatTime(recordingTime)}</span>
                   )}
                   {recordingError && <span className="text-xs text-[#a54136]">{recordingError}</span>}
-                  <button
-                    type="button"
-                    className="rounded-full bg-[#8a8377] px-6 py-2 text-sm font-semibold text-white hover:bg-[#6c6255]"
-                  >
-                    Save story
-                  </button>
                 </div>
 
                 {(isRecording || isTranscribing || liveTranscript || recordingError || recordingStatus !== "Idle") && (
