@@ -1270,7 +1270,7 @@ export default function StudioWorkspace({
                       isRecording
                         ? "bg-[#7a1a10] hover:bg-[#5e140b] animate-pulse"
                         : isTranscribing
-                          ? "bg-[#c2241a] animate-pulse [animation-duration:1.8s] cursor-wait"
+                          ? "bg-[#8fcf9e] animate-pulse [animation-duration:1.8s] cursor-wait"
                           : "bg-[#c2241a] hover:bg-[#a01a12]"
                     }`}
                   >
