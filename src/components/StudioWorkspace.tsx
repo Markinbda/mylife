@@ -135,7 +135,14 @@ export default function StudioWorkspace({
   );
 
   const hydrateChapters = useCallback(async (uid: string, laneValue: string) => {
-    const { data: chapterRows, error: chapterError } = await supabase
+    if (!supabase) {
+      setDbError("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      return;
+    }
+
+    const client = supabase;
+
+    const { data: chapterRows, error: chapterError } = await client
       .from("chapters")
       .select("id, title, year_label, position")
       .eq("user_id", uid)
@@ -158,13 +165,13 @@ export default function StudioWorkspace({
         position: index,
       }));
 
-      const { error: seedError } = await supabase.from("chapters").insert(seedPayload);
+      const { error: seedError } = await client.from("chapters").insert(seedPayload);
       if (seedError) {
         setDbError(seedError.message);
         return;
       }
 
-      const { data: seededRows, error: seededFetchError } = await supabase
+      const { data: seededRows, error: seededFetchError } = await client
         .from("chapters")
         .select("id, title, year_label, position")
         .eq("user_id", uid)
@@ -182,14 +189,14 @@ export default function StudioWorkspace({
     const chapterIds = rows.map((row) => row.id);
 
     const { data: entryRows } = chapterIds.length
-      ? await supabase
+      ? await client
           .from("chapter_entries")
           .select("chapter_id, content")
           .in("chapter_id", chapterIds)
       : { data: [] as EntryRow[] };
 
     const { data: photoRows } = chapterIds.length
-      ? await supabase
+      ? await client
           .from("chapter_photos")
           .select("chapter_id, url")
           .in("chapter_id", chapterIds)
@@ -230,6 +237,12 @@ export default function StudioWorkspace({
       setLoadingData(true);
       setDbError("");
 
+      if (!supabase) {
+        setDbError("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+        setLoadingData(false);
+        return;
+      }
+
       const {
         data: { user },
         error,
@@ -259,7 +272,7 @@ export default function StudioWorkspace({
 
   const appendEntryToChapter = async (entry: string) => {
     const trimmed = entry.trim();
-    if (!trimmed || !userId || !selectedChapterId) return;
+    if (!supabase || !trimmed || !userId || !selectedChapterId) return;
 
     const { error } = await supabase.from("chapter_entries").insert({
       user_id: userId,
@@ -297,7 +310,7 @@ export default function StudioWorkspace({
   };
 
   const createNewChapter = async () => {
-    if (!userId) return;
+    if (!supabase || !userId) return;
 
     const payload = {
       user_id: userId,
@@ -386,7 +399,7 @@ export default function StudioWorkspace({
 
   const handleUploadPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0 || !userId || !selectedChapterId) return;
+    if (!supabase || !files || files.length === 0 || !userId || !selectedChapterId) return;
 
     const uploadedUrls: string[] = [];
 
@@ -456,7 +469,7 @@ export default function StudioWorkspace({
   };
 
   const attachPexelsImage = async (url: string) => {
-    if (!userId || !selectedChapterId) return;
+    if (!supabase || !userId || !selectedChapterId) return;
 
     const { error } = await supabase.from("chapter_photos").insert({
       user_id: userId,
@@ -479,6 +492,11 @@ export default function StudioWorkspace({
   };
 
   const signOut = async () => {
+    if (!supabase) {
+      router.push("/login");
+      return;
+    }
+
     await supabase.auth.signOut();
     router.push("/login");
   };
@@ -718,5 +736,7 @@ export default function StudioWorkspace({
     </main>
   );
 }
+
+
 
 
