@@ -1278,24 +1278,6 @@ export default function StudioWorkspace({
                   )}
                   {recordingError && <span className="text-xs text-[#a54136]">{recordingError}</span>}
                 </div>
-
-                {(isRecording || isTranscribing || liveTranscript || recordingError || recordingStatus !== "Idle") && (
-                  <div className="mx-auto max-w-2xl rounded-2xl border border-[#e4dacd] bg-white px-4 py-3 text-sm text-[#5f5447]">
-                    {(isRecording || isTranscribing) && !liveTranscript && (
-                      <p className="italic text-[#8e7f6f]">{recordingStatus}</p>
-                    )}
-                    {liveTranscript && (
-                      <p>
-                        <span className="font-semibold text-[#a54136]">Live transcript: </span>
-                        {liveTranscript}
-                      </p>
-                    )}
-                    {!isRecording && recordingStatus && !recordingError && (
-                      <p className="mt-1 text-xs text-[#8e7f6f]">Status: {recordingStatus}</p>
-                    )}
-                    {recordingError && <p className="mt-1 text-[#a54136]">{recordingError}</p>}
-                  </div>
-                )}
               </div>
             </div>
 
