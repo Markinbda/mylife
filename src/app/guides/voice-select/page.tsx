@@ -39,6 +39,44 @@ interface VoiceCard {
   gender: string;
 }
 
+const VOICE_NAME_IMAGE_MAP: Record<string, { image: string; gender: string }> = {
+  charlie: { image: "/images/voice-charlie.jpg", gender: "Male (Teenage Boy)" },
+  liam: { image: "/images/voice-liam.jpg", gender: "Male (Teenage Boy)" },
+};
+const FEMALE_HINTS = ["jessica", "female", "woman", "girl", "mom", "mother", "housewife"];
+const MALE_HINTS = ["male", "man", "boy", "dad", "father"];
+
+function getVoicePresentation(voice: ElevenVoice): { image: string; gender: string } {
+  const normalizedName = voice.name.toLowerCase();
+  const searchableText = `${voice.name} ${voice.category ?? ""}`.toLowerCase();
+
+  const mappedByName = Object.entries(VOICE_NAME_IMAGE_MAP).find(([voiceName]) =>
+    normalizedName === voiceName || normalizedName.startsWith(`${voiceName} `) || normalizedName.includes(`${voiceName} -`),
+  )?.[1];
+  if (mappedByName) {
+    return mappedByName;
+  }
+
+  if (FEMALE_HINTS.some((hint) => searchableText.includes(hint))) {
+    return {
+      image: "/images/guide-coach.png",
+      gender: "Female",
+    };
+  }
+
+  if (MALE_HINTS.some((hint) => searchableText.includes(hint))) {
+    return {
+      image: "/images/guide-friend.png",
+      gender: "Male",
+    };
+  }
+
+  return {
+    image: "/images/guide-coach.png",
+    gender: "Voice Guide",
+  };
+}
+
 function VoiceSelectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -50,7 +88,7 @@ function VoiceSelectContent() {
   const [voices, setVoices] = useState<ElevenVoice[]>([]);
   const [voicesLoading, setVoicesLoading] = useState(true);
   const [voicesError, setVoicesError] = useState("");
-  const [selectedVoiceId, setSelectedVoiceId] = useState(() => {
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>(() => {
     if (typeof window === "undefined") return "";
     return localStorage.getItem("mylife:elevenlabs:voiceId") ?? "";
   });
@@ -91,35 +129,32 @@ function VoiceSelectContent() {
 
   const voiceCards = useMemo(
     (): VoiceCard[] =>
-      filteredVoices.map((voice, index) => ({
-        voice,
-        image: index % 2 === 0 ? "/images/guide-coach.png" : "/images/guide-friend.png",
-        gender: index % 2 === 0 ? "Female" : "Male",
-      })),
+      filteredVoices.map((voice) => {
+        const presentation = getVoicePresentation(voice);
+        return {
+          voice,
+          image: presentation.image,
+          gender: presentation.gender,
+        };
+      }),
     [filteredVoices],
-  );
-
-  const selectedVoiceFromFiltered = useMemo(
-    () => filteredVoices.find((voice) => voice.id === selectedVoiceId),
-    [filteredVoices, selectedVoiceId],
   );
 
   useEffect(() => {
     localStorage.setItem("mylife:elevenlabs:voiceId", selectedVoiceId.trim());
   }, [selectedVoiceId]);
 
-  useEffect(() => {
-    if (filteredVoices.length === 0) {
-      if (selectedVoiceId !== "") {
-        setSelectedVoiceId("");
-      }
-      return;
-    }
-
-    if (!filteredVoices.some((voice) => voice.id === selectedVoiceId)) {
-      setSelectedVoiceId(filteredVoices[0].id);
-    }
+  // Derive the effective voice ID without triggering cascading setState in effects
+  const effectiveVoiceId = useMemo(() => {
+    if (filteredVoices.length === 0) return "";
+    if (filteredVoices.some((voice) => voice.id === selectedVoiceId)) return selectedVoiceId;
+    return filteredVoices[0].id;
   }, [filteredVoices, selectedVoiceId]);
+
+  const selectedVoiceFromFiltered = useMemo(
+    () => filteredVoices.find((voice) => voice.id === effectiveVoiceId),
+    [filteredVoices, effectiveVoiceId],
+  );
 
   useEffect(() => {
     let active = true;
@@ -229,7 +264,7 @@ function VoiceSelectContent() {
 
   const startWithGuide = () => {
     const params = new URLSearchParams({ lane: "story", guide: selected.id });
-    if (selectedVoiceId.trim()) params.set("voice", selectedVoiceId.trim());
+    if (effectiveVoiceId.trim()) params.set("voice", effectiveVoiceId.trim());
     if (selectedVoiceFromFiltered?.name) params.set("voiceName", selectedVoiceFromFiltered.name);
     router.push(`/studio?${params.toString()}`);
   };
@@ -288,12 +323,19 @@ function VoiceSelectContent() {
           {!voicesLoading && filteredVoices.length > 0 && (
             <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-3">
               {voiceCards.map((card) => (
-                <button
+                <div
                   key={card.voice.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedVoiceId(card.voice.id)}
-                  className={`group relative flex flex-col overflow-hidden rounded-2xl border-2 transition-all ${
-                    card.voice.id === selectedVoiceId
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedVoiceId(card.voice.id);
+                    }
+                  }}
+                  className={`group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border-2 transition-all ${
+                    card.voice.id === effectiveVoiceId
                       ? "border-[#c9793d] shadow-lg"
                       : "border-[#e5ddd1] shadow-md hover:shadow-lg hover:border-[#d4c4b5]"
                   }`}
@@ -330,14 +372,14 @@ function VoiceSelectContent() {
                   </div>
 
                   {/* Selection Indicator */}
-                  {card.voice.id === selectedVoiceId && (
+                  {card.voice.id === effectiveVoiceId && (
                     <div className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#c9793d]">
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="2">
                         <path d="M2 8l4 4 8-10" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
                   )}
-                </button>
+                </div>
               ))}
             </div>
           )}
