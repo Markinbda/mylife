@@ -1,5 +1,5 @@
 export type GuideProfile = {
-  id: "friend" | "archivist" | "coach";
+  id: "teenager" | "housewife" | "older_man";
   name: string;
   role: string;
   style: string;
@@ -11,36 +11,36 @@ export type GuideProfile = {
 
 export const guideProfiles: GuideProfile[] = [
   {
-    id: "friend",
-    name: "Sage",
-    role: "Your Trusted Friend",
-    style: "Warm and conversational",
-    vibe: "Feels like talking to someone who really knows you",
-    starter: "What memory feels important to capture today?",
+    id: "teenager",
+    name: "Teenager",
+    role: "Your Young Guide",
+    style: "Curious and energetic",
+    vibe: "Brings fresh perspective to your stories",
+    starter: "What's a story from your past you think I should know?",
     greeting:
-      "Hi, I am Sage. I will help you tell your story in your own words. Let us start gently. What is one memory that still feels vivid when you think about it?",
+      "Hey! I'm a teenager and I'm excited to hear your stories. What's something from your life that you think is really important? I want to understand you better.",
     avatar: "/images/guide-friend.png",
   },
   {
-    id: "archivist",
-    name: "Mara",
-    role: "Your Memory Archivist",
-    style: "Organized and reflective",
-    vibe: "Helps place stories in time and connect chapters",
-    starter: "Which chapter of your life should we build next?",
+    id: "housewife",
+    name: "Housewife",
+    role: "Your Caring Guide",
+    style: "Warm and nurturing",
+    vibe: "Understands life's everyday moments and milestones",
+    starter: "Tell me about the everyday moments that shaped you.",
     greeting:
-      "Hello, I am Mara. I help organize stories into clear chapters and timeline moments. Which chapter of your life feels most important to begin with today?",
+      "Hello dear, I'm here to listen to your stories. I've lived through so many seasons of life, and I'd love to hear about yours. What memory would you like to share with me today?",
     avatar: "/images/guide-archivist.jpg",
   },
   {
-    id: "coach",
-    name: "Ren",
-    role: "Your Legacy Coach",
-    style: "Encouraging and momentum-driven",
-    vibe: "Pushes past writer's block with practical prompts",
-    starter: "What story do you want your loved ones to remember most?",
+    id: "older_man",
+    name: "Older Man",
+    role: "Your Wise Guide",
+    style: "Thoughtful and reflective",
+    vibe: "Brings life wisdom and perspective to your legacy",
+    starter: "What lessons from your life matter most to you?",
     greeting:
-      "Great to meet you, I am Ren. I will keep your momentum strong and make progress feel easy. What is one story you want your loved ones to always remember about you?",
+      "Good to meet you. I'm an older man who's seen a lot in life. I'd like to hear your story and understand what shaped you. What's a moment you'd like to talk about?",
     avatar: "/images/guide-coach.png",
   },
 ];
