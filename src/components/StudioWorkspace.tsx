@@ -184,6 +184,7 @@ export default function StudioWorkspace({
   });
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playGuideVoiceRef = useRef<((text: string) => Promise<void>) | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -448,9 +449,11 @@ export default function StudioWorkspace({
         // Show a reminder of the last AI reply so the user can continue, but don't re-persist
         const lastGuide = [...fullHistory].reverse().find((m) => m.role === "guide");
         const reentryContent = lastGuide
-          ? `Last time we were together we talked about... ${lastGuide.content}`
+          ? `The last thing we discussed was... ${lastGuide.content}`
           : openingMessage;
         setChatMessages([{ role: "guide", content: reentryContent }]);
+        // Read the recap aloud so the user hears where we left off
+        void playGuideVoiceRef.current?.(reentryContent).catch(() => {});
       }
     };
 
@@ -529,6 +532,10 @@ export default function StudioWorkspace({
     },
     [profile.id, voice],
   );
+
+  useEffect(() => {
+    playGuideVoiceRef.current = playGuideVoice;
+  }, [playGuideVoice]);
 
   const sendToGuide = async (incomingText?: string) => {
     const text = (incomingText ?? chatInput).trim();
