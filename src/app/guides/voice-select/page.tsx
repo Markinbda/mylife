@@ -45,10 +45,6 @@ interface VoiceCard {
   description: string;
 }
 
-const VOICE_ID_OVERRIDES: Record<string, string> = {
-  liam: "I1ejplf72DWHJzwAiw4n",
-};
-
 function getVoicePresentation(voice: ElevenVoice): { displayName: string; description: string } {
   const [namePart, ...rest] = voice.name.split(" - ");
   const rawDescription = rest.join(" - ").trim() || voice.category || "Voice Guide";
@@ -113,10 +109,8 @@ function VoiceSelectContent() {
     (): VoiceCard[] =>
       filteredVoices.map((voice) => {
         const presentation = getVoicePresentation(voice);
-        const overrideId = VOICE_ID_OVERRIDES[presentation.displayName.toLowerCase()];
-        const effectiveVoice: ElevenVoice = overrideId ? { ...voice, id: overrideId } : voice;
         return {
-          voice: effectiveVoice,
+          voice,
           displayName: presentation.displayName,
           description: presentation.description,
         };
@@ -130,14 +124,14 @@ function VoiceSelectContent() {
 
   // Derive the effective voice ID without triggering cascading setState in effects
   const effectiveVoiceId = useMemo(() => {
-    if (voiceCards.length === 0) return "";
-    if (voiceCards.some((card) => card.voice.id === selectedVoiceId)) return selectedVoiceId;
-    return voiceCards[0].voice.id;
-  }, [voiceCards, selectedVoiceId]);
+    if (filteredVoices.length === 0) return "";
+    if (filteredVoices.some((voice) => voice.id === selectedVoiceId)) return selectedVoiceId;
+    return filteredVoices[0].id;
+  }, [filteredVoices, selectedVoiceId]);
 
   const selectedVoiceFromFiltered = useMemo(
-    () => voiceCards.find((card) => card.voice.id === effectiveVoiceId)?.voice,
-    [voiceCards, effectiveVoiceId],
+    () => filteredVoices.find((voice) => voice.id === effectiveVoiceId),
+    [filteredVoices, effectiveVoiceId],
   );
 
   useEffect(() => {
