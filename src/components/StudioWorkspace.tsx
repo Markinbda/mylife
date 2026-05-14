@@ -145,6 +145,8 @@ export default function StudioWorkspace({
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isMicPickerOpen, setIsMicPickerOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isChaptersExpanded, setIsChaptersExpanded] = useState(true);
+  const [isPhotoMenuOpen, setIsPhotoMenuOpen] = useState(false);
   const [chapterSearch, setChapterSearch] = useState("");
   const [showSuggestedChapterPicker, setShowSuggestedChapterPicker] = useState(false);
   const [selectedSuggestedTitles, setSelectedSuggestedTitles] = useState<string[]>(defaultStoryTitles.slice(0, 4));
@@ -170,6 +172,7 @@ export default function StudioWorkspace({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const finalTranscriptRef = useRef("");
@@ -1131,9 +1134,6 @@ export default function StudioWorkspace({
                     {/* Last guide message or thinking indicator */}
                     {(isGuideThinking || chatMessages.findLast((m) => m.role === "guide")) && (
                       <div className="flex flex-col items-center gap-4">
-                        <div className="relative h-10 w-10 overflow-hidden rounded-full border border-[#dcc6a4]">
-                          <Image src={profile.avatar} alt={profile.name} fill className="object-cover" sizes="40px" />
-                        </div>
                         {isGuideThinking ? (
                           <p className="text-2xl text-[#b5a898] animate-pulse">&#8230;</p>
                         ) : (
@@ -1149,44 +1149,70 @@ export default function StudioWorkspace({
 
               {/* Action buttons and response area */}
               <div className="sticky bottom-0 mt-4 space-y-4 border-t border-[#e8dfd4] bg-[#f7f5f1] pt-4 pb-10">
-                {/* Action buttons - compact flat row */}
-                <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-2 text-sm text-[#6c6255]">
-                  <span className="font-semibold">Add a story through</span>
+                {/* Action buttons - icon-only row */}
+                <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-3 text-sm text-[#6c6255]">
+                  <span className="font-semibold">Add a story</span>
                   <button
                     type="button"
                     onClick={() => setIsComposerOpen((prev) => !prev)}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 transition-colors ${
+                    aria-label="Type with keyboard"
+                    title="Keyboard"
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-lg transition-colors ${
                       isComposerOpen
-                        ? "border-[#b89a75] bg-[#f6ede0] text-[#3f3328]"
+                        ? "border-[#b89a75] bg-[#f6ede0]"
                         : "border-[#dcc6a4] bg-white hover:bg-[#faf6ef]"
                     }`}
                   >
-                    <span>⌨️</span>
-                    <span className="font-semibold">Keyboard</span>
+                    ⌨️
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#dcc6a4] bg-white px-3 py-1 hover:bg-[#faf6ef]"
-                  >
-                    <span>📸</span>
-                    <span className="font-semibold">Photo</span>
-                  </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsPhotoMenuOpen((prev) => !prev)}
+                      aria-label="Add photo"
+                      title="Photo"
+                      className={`flex h-10 w-10 items-center justify-center rounded-full border text-lg transition-colors ${
+                        isPhotoMenuOpen
+                          ? "border-[#b89a75] bg-[#f6ede0]"
+                          : "border-[#dcc6a4] bg-white hover:bg-[#faf6ef]"
+                      }`}
+                    >
+                      📸
+                    </button>
+                    {isPhotoMenuOpen && (
+                      <div className="absolute bottom-12 left-1/2 z-20 flex -translate-x-1/2 flex-col gap-1 rounded-xl border border-[#e4dacd] bg-white p-2 shadow-lg">
+                        <button
+                          type="button"
+                          onClick={() => { setIsPhotoMenuOpen(false); cameraInputRef.current?.click(); }}
+                          className="whitespace-nowrap rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-[#3f3328] hover:bg-[#faf6ef]"
+                        >
+                          📷 Take a picture
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setIsPhotoMenuOpen(false); fileInputRef.current?.click(); }}
+                          className="whitespace-nowrap rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-[#3f3328] hover:bg-[#faf6ef]"
+                        >
+                          🖼️ Choose from library
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       setIsMicPickerOpen((prev) => !prev);
                       if (!isMicPickerOpen) void loadMicDevices();
                     }}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 transition-colors ${
+                    aria-label="Choose microphone"
+                    title="Microphone settings"
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-lg transition-colors ${
                       isMicPickerOpen
-                        ? "border-[#b89a75] bg-[#f6ede0] text-[#3f3328]"
+                        ? "border-[#b89a75] bg-[#f6ede0]"
                         : "border-[#dcc6a4] bg-white hover:bg-[#faf6ef]"
                     }`}
-                    title="Choose microphone"
                   >
-                    <span>🎤</span>
-                    <span className="font-semibold">Mic</span>
+                    🎤
                   </button>
                 </div>
 
@@ -1252,13 +1278,9 @@ export default function StudioWorkspace({
                   </div>
                 )}
 
-                {transcriptionConfigured !== null && (
+                {transcriptionConfigured === false && (
                   <div className="mx-auto max-w-2xl text-xs">
-                    {transcriptionConfigured ? (
-                      <p className="font-semibold text-[#2f8a57]">Transcription configured</p>
-                    ) : (
-                      <p className="font-semibold text-[#a54136]">Transcription not configured</p>
-                    )}
+                    <p className="font-semibold text-[#a54136]">Transcription not configured</p>
                   </div>
                 )}
 
@@ -1356,7 +1378,15 @@ export default function StudioWorkspace({
                 className="w-full rounded-xl border border-[#e5ddd2] bg-white px-3 py-2 text-sm text-[#6c6255] outline-none focus:ring-2 focus:ring-[#84b4b0]"
               />
               <div className="mt-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-[#5d564c]">Chapters</h2>
+                <button
+                  type="button"
+                  onClick={() => setIsChaptersExpanded((prev) => !prev)}
+                  className="flex items-center gap-2 text-lg font-semibold text-[#5d564c]"
+                  aria-expanded={isChaptersExpanded}
+                >
+                  <span className="text-xs">{isChaptersExpanded ? "▼" : "▶"}</span>
+                  Chapters
+                </button>
                 <button
                   type="button"
                   onClick={() => { void createNewChapter(); setIsMobileMenuOpen(false); }}
@@ -1365,24 +1395,26 @@ export default function StudioWorkspace({
                   + New
                 </button>
               </div>
-              <div className="mt-2 space-y-2">
-                {filteredChapters.map((chapter, index) => {
-                  const active = chapter.id === selectedChapterId;
-                  return (
-                    <button
-                      key={chapter.id}
-                      type="button"
-                      onClick={() => { setSelectedChapterId(chapter.id); setIsMobileMenuOpen(false); }}
-                      className={`w-full rounded-xl border bg-white px-3 py-2 text-left transition-colors ${
-                        active ? "border-[#84b4b0] shadow-[inset_3px_0_0_0_#84b4b0]" : "border-[#ebe3d7]"
-                      }`}
-                    >
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#84b4b0]">Chapter {index + 1}</p>
-                      <p className="mt-0.5 line-clamp-2 font-serif text-base text-[#251d16]">{chapter.title}</p>
-                    </button>
-                  );
-                })}
-              </div>
+              {isChaptersExpanded && (
+                <div className="mt-2 space-y-2">
+                  {filteredChapters.map((chapter, index) => {
+                    const active = chapter.id === selectedChapterId;
+                    return (
+                      <button
+                        key={chapter.id}
+                        type="button"
+                        onClick={() => { setSelectedChapterId(chapter.id); setIsMobileMenuOpen(false); }}
+                        className={`w-full rounded-xl border bg-white px-3 py-2 text-left transition-colors ${
+                          active ? "border-[#84b4b0] shadow-[inset_3px_0_0_0_#84b4b0]" : "border-[#ebe3d7]"
+                        }`}
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#84b4b0]">Chapter {index + 1}</p>
+                        <p className="mt-0.5 line-clamp-2 font-serif text-base text-[#251d16]">{chapter.title}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               <h2 className="mt-6 text-lg font-semibold text-[#5d564c]">Photos</h2>
               <div className="mt-2 grid grid-cols-3 gap-2">
@@ -1534,12 +1566,21 @@ export default function StudioWorkspace({
         </div>
       )}
 
-      {/* Hidden file input for photo upload */}
+      {/* Hidden file input for photo upload (library) */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         multiple
+        className="hidden"
+        onChange={(e) => void handleUploadPhoto(e)}
+      />
+      {/* Hidden file input for camera capture */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
         className="hidden"
         onChange={(e) => void handleUploadPhoto(e)}
       />
