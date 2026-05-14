@@ -559,6 +559,10 @@ export default function StudioWorkspace({
       userMessage,
     ];
 
+    // Every 4th user response, invite them to continue the subject or switch to a new one
+    const userTurnCount = aiHistory.filter((m) => m.role === "user").length;
+    const pivotPrompt = userTurnCount > 0 && userTurnCount % 4 === 0;
+
     setIsGuideThinking(true);
     let replyText: string;
     try {
@@ -570,6 +574,7 @@ export default function StudioWorkspace({
           chapterTitle: selectedChapter?.title ?? "",
           firstName,
           messages: aiHistory,
+          pivotPrompt,
         }),
       });
       const data = (await res.json()) as { reply?: string; error?: string };

@@ -27,11 +27,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "AI chat is not configured." }, { status: 503 });
   }
 
-  const { guideId, chapterTitle, firstName, messages } = (await request.json()) as {
+  const { guideId, chapterTitle, firstName, messages, pivotPrompt } = (await request.json()) as {
     guideId?: string;
     chapterTitle?: string;
     firstName?: string;
     messages?: ChatMessage[];
+    pivotPrompt?: boolean;
   };
 
   const profile = getGuideProfile(guideId);
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
 
   const namingInstructions = name
     ? [
-        `Their preferred name is ${name}. Use it warmly but sparingly — about once every three or four replies, never in every message.`,
+        `Their preferred name is ${name}. Use it warmly but very sparingly — roughly once every five to seven replies, never more often. Most replies should not mention their name at all.`,
       ]
     : [
         `You do NOT yet know what to call this person. Your opening message already asked: "Is it ok if I ask you what I should call you?"`,
@@ -61,6 +62,9 @@ export async function POST(request: Request) {
     `Aim for 3-6 sentences — warm, personal, and specific. Reference concrete details from earlier turns in this conversation when it makes the reply feel more connected (e.g. callback to a person, place, feeling, or event they mentioned before). Never invent facts they did not share.`,
     `Briefly mirror or honor what they said in one sentence, share a short observation or gentle insight, and then close with ONE open-ended follow-up question that invites them to go deeper.`,
     `Do NOT offer suggestions or prompts unless specifically asked. Do NOT say "I can suggest another prompt". Avoid generic platitudes.`,
+    pivotPrompt
+      ? `IMPORTANT: This is a natural pause point. Instead of your usual single follow-up question, briefly reflect on what they shared, then ask warmly whether they would like to keep exploring this same subject a little longer, or move on to something new. Make it feel like an invitation, not an interruption.`
+      : ``,
   ]
     .filter(Boolean)
     .join("\n");
