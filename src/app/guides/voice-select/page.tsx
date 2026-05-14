@@ -40,8 +40,9 @@ interface VoiceCard {
 }
 
 const VOICE_NAME_IMAGE_MAP: Record<string, { image: string; gender: string }> = {
-  charlie: { image: "/images/voice-charlie.jpg", gender: "Male (Teenage Boy)" },
-  liam: { image: "/images/voice-liam.jpg", gender: "Male (Teenage Boy)" },
+  charlie: { image: "/images/voice-charlie.png", gender: "Male (Teenage Boy)" },
+  liam: { image: "/images/voice-liam.png", gender: "Male (Teenage Boy)" },
+  jessica: { image: "/images/voice-jessica.png", gender: "Female" },
 };
 const FEMALE_HINTS = ["jessica", "female", "woman", "girl", "mom", "mother", "housewife"];
 const MALE_HINTS = ["male", "man", "boy", "dad", "father"];
