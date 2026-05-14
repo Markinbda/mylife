@@ -208,7 +208,7 @@ function VoiceSelectContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           guideId: selected.id,
-          text: selected.greeting,
+          text: "Hi, I'm here to sit and talk with you about your life",
           voiceId: voiceId.trim() || undefined,
         }),
       });

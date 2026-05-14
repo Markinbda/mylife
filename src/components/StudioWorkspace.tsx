@@ -445,11 +445,12 @@ export default function StudioWorkspace({
         setChatMessages([initialMessage]);
         await persistConversationMessage(selectedChapterId, initialMessage);
       } else {
-        // Show last AI message as a starting point so user can continue, but don't re-persist
+        // Show a reminder of the last AI reply so the user can continue, but don't re-persist
         const lastGuide = [...fullHistory].reverse().find((m) => m.role === "guide");
-        setChatMessages(
-          lastGuide ? [{ role: "guide", content: lastGuide.content }] : [{ role: "guide", content: openingMessage }],
-        );
+        const reentryContent = lastGuide
+          ? `Last time we were together we talked about... ${lastGuide.content}`
+          : openingMessage;
+        setChatMessages([{ role: "guide", content: reentryContent }]);
       }
     };
 
