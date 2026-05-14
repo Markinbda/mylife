@@ -160,6 +160,14 @@ export default function StudioWorkspace({
   const [searchingPexels, setSearchingPexels] = useState(false);
   const [selectedPhotoPreview, setSelectedPhotoPreview] = useState<string | null>(null);
   const [showConversationHistory, setShowConversationHistory] = useState(false);
+  const [historyMode, setHistoryMode] = useState<"today" | "previous" | "search">("today");
+  const [historyDate, setHistoryDate] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
+  const [historySearch, setHistorySearch] = useState("");
+  type ConversationEntry = ChatMessage & { created_at: string };
+  const [allConversation, setAllConversation] = useState<ConversationEntry[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [recordingError, setRecordingError] = useState("");
@@ -215,6 +223,7 @@ export default function StudioWorkspace({
     async (chapterId: string, message: ChatMessage) => {
       if (!supabase || !userId || !chapterId) return;
 
+      const nowIso = new Date().toISOString();
       await supabase.from("chapter_conversations").insert({
         user_id: userId,
         chapter_id: chapterId,
@@ -222,6 +231,7 @@ export default function StudioWorkspace({
         role: message.role,
         content: message.content,
       });
+      setAllConversation((prev) => [...prev, { ...message, created_at: nowIso }]);
     },
     [guide, supabase, userId],
   );
@@ -391,6 +401,7 @@ export default function StudioWorkspace({
       if (!supabase || !userId || !selectedChapterId) {
         if (active) {
           setChatMessages([{ role: "guide", content: openingMessage }]);
+          setAllConversation([]);
         }
         return;
       }
@@ -406,22 +417,39 @@ export default function StudioWorkspace({
 
       if (error) {
         setChatMessages([{ role: "guide", content: openingMessage }]);
+        setAllConversation([]);
         return;
       }
 
-      const history = ((data ?? []) as ConversationRow[]).map((message) => ({
+      const fullHistory = ((data ?? []) as ConversationRow[]).map((message) => ({
         role: message.role,
         content: message.content,
-      }));
+        created_at: message.created_at ?? new Date().toISOString(),
+      })) as ConversationEntry[];
 
-      if (history.length > 0) {
-        setChatMessages(history);
+      setAllConversation(fullHistory);
+
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const todays = fullHistory.filter((m) => new Date(m.created_at) >= startOfToday);
+
+      if (todays.length > 0) {
+        setChatMessages(todays.map(({ role, content }) => ({ role, content })));
         return;
       }
 
-      const initialMessage = { role: "guide", content: openingMessage } as const;
-      setChatMessages([initialMessage]);
-      await persistConversationMessage(selectedChapterId, initialMessage);
+      // No messages today
+      if (fullHistory.length === 0) {
+        const initialMessage = { role: "guide", content: openingMessage } as const;
+        setChatMessages([initialMessage]);
+        await persistConversationMessage(selectedChapterId, initialMessage);
+      } else {
+        // Show last AI message as a starting point so user can continue, but don't re-persist
+        const lastGuide = [...fullHistory].reverse().find((m) => m.role === "guide");
+        setChatMessages(
+          lastGuide ? [{ role: "guide", content: lastGuide.content }] : [{ role: "guide", content: openingMessage }],
+        );
+      }
     };
 
     void loadConversationHistory();
@@ -511,6 +539,12 @@ export default function StudioWorkspace({
     await persistConversationMessage(selectedChapterId, userMessage);
     await appendEntryToChapter(text);
 
+    // Build AI context from full history (memory across days), capped to last 30 turns
+    const aiHistory = [
+      ...allConversation.slice(-30).map(({ role, content }) => ({ role, content })),
+      userMessage,
+    ];
+
     setIsGuideThinking(true);
     let replyText: string;
     try {
@@ -521,7 +555,7 @@ export default function StudioWorkspace({
           guideId: profile.id,
           chapterTitle: selectedChapter?.title ?? "",
           firstName,
-          messages: updatedMessages,
+          messages: aiHistory,
         }),
       });
       const data = (await res.json()) as { reply?: string; error?: string };
@@ -1558,49 +1592,133 @@ export default function StudioWorkspace({
         </div>
       )}
 
-      {showConversationHistory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-2xl rounded-3xl border border-[#e4dacd] bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-serif text-3xl text-[#1f1711]">Conversation History</h2>
+      {showConversationHistory && (() => {
+        const startOfDay = (key: string) => {
+          const [y, m, d] = key.split("-").map(Number);
+          return new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0);
+        };
+        const endOfDay = (key: string) => {
+          const start = startOfDay(key);
+          return new Date(start.getTime() + 24 * 60 * 60 * 1000);
+        };
+        const todayKey = (() => {
+          const d = new Date();
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        })();
+
+        let displayed: ConversationEntry[] = [];
+        if (historyMode === "today") {
+          const start = startOfDay(todayKey);
+          displayed = allConversation.filter((m) => new Date(m.created_at) >= start);
+        } else if (historyMode === "previous") {
+          const start = startOfDay(historyDate);
+          const end = endOfDay(historyDate);
+          displayed = allConversation.filter((m) => {
+            const t = new Date(m.created_at);
+            return t >= start && t < end;
+          });
+        } else {
+          const q = historySearch.trim().toLowerCase();
+          displayed = q ? allConversation.filter((m) => m.content.toLowerCase().includes(q)) : [];
+        }
+
+        const formatStamp = (iso: string) => {
+          const d = new Date(iso);
+          return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="flex w-full max-w-2xl flex-col rounded-3xl border border-[#e4dacd] bg-white p-6 shadow-2xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-serif text-3xl text-[#1f1711]">Conversation History</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowConversationHistory(false)}
+                  className="text-2xl text-[#8e7f6f] hover:text-[#6c6255]"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="mb-3 flex flex-wrap gap-2">
+                {(["today", "previous", "search"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setHistoryMode(mode)}
+                    className={`rounded-full border px-4 py-1.5 text-sm font-semibold capitalize transition-colors ${
+                      historyMode === mode
+                        ? "border-[#84b4b0] bg-[#e8f4f2] text-[#3f6664]"
+                        : "border-[#e4dacd] bg-white text-[#6c6255] hover:bg-[#faf6ef]"
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+
+              {historyMode === "previous" && (
+                <div className="mb-3 flex items-center gap-2">
+                  <label htmlFor="history-date" className="text-sm font-semibold text-[#6c6255]">Date</label>
+                  <input
+                    id="history-date"
+                    type="date"
+                    value={historyDate}
+                    max={todayKey}
+                    onChange={(e) => setHistoryDate(e.target.value)}
+                    className="rounded-lg border border-[#e4dacd] bg-white px-3 py-1.5 text-sm text-[#3f3328] focus:border-[#b89a75] focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {historyMode === "search" && (
+                <div className="mb-3">
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    placeholder="Search your conversations…"
+                    className="w-full rounded-xl border border-[#e4dacd] bg-white px-3 py-2 text-sm text-[#3f3328] placeholder-[#b5a898] focus:border-[#b89a75] focus:outline-none"
+                  />
+                </div>
+              )}
+
+              <div className="max-h-96 space-y-3 overflow-y-auto rounded-2xl border border-[#e9e0d3] bg-[#fbfaf7] p-4">
+                {displayed.length === 0 ? (
+                  <p className="text-center text-sm text-[#8e7f6f]">
+                    {historyMode === "search" && !historySearch.trim()
+                      ? "Type something to search your conversations."
+                      : "No messages found."}
+                  </p>
+                ) : (
+                  displayed.map((message, index) => (
+                    <div key={`${message.role}-${index}-${message.created_at}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                      <div className="max-w-[80%]">
+                        <p className={`rounded-2xl px-3 py-2 text-sm ${message.role === "user" ? "bg-[#f2d9a7] text-[#442c0e]" : "bg-white text-[#3f3328]"}`}>
+                          {message.content}
+                        </p>
+                        <p className={`mt-1 text-[10px] text-[#8e7f6f] ${message.role === "user" ? "text-right" : ""}`}>
+                          {message.role === "user" ? "You" : profile.name} · {formatStamp(message.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={() => setShowConversationHistory(false)}
-                className="text-2xl text-[#8e7f6f] hover:text-[#6c6255]"
+                className="mt-4 w-full rounded-full bg-[#84b4b0] px-4 py-2 font-semibold text-white hover:bg-[#6f9890]"
               >
-                ×
+                Close
               </button>
             </div>
-
-            <div className="max-h-96 space-y-4 overflow-y-auto rounded-2xl border border-[#e9e0d3] bg-[#fbfaf7] p-4">
-              {chatMessages.length === 0 ? (
-                <p className="text-center text-[#8e7f6f]">No messages yet. Start a conversation!</p>
-              ) : (
-                chatMessages.map((message, index) => (
-                  <div key={`${message.role}-${index}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[75%] ${message.role === "user" ? "" : ""}`}>
-                      <p className={`rounded-2xl px-3 py-2 text-sm ${message.role === "user" ? "bg-[#f2d9a7] text-[#442c0e]" : "bg-white text-[#3f3328]"}`}>
-                        {message.content}
-                      </p>
-                      <p className={`mt-1 text-[10px] ${message.role === "user" ? "text-right text-[#8e7f6f]" : "text-[#8e7f6f]"}`}>
-                        {message.role === "user" ? "You" : profile.name}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowConversationHistory(false)}
-              className="mt-4 w-full rounded-full bg-[#84b4b0] px-4 py-2 font-semibold text-white hover:bg-[#6f9890]"
-            >
-              Close
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {selectedPhotoPreview && (
         <div
