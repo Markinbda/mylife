@@ -553,9 +553,9 @@ export default function StudioWorkspace({
     await persistConversationMessage(selectedChapterId, userMessage);
     await appendEntryToChapter(text);
 
-    // Build AI context from full history (memory across days), capped to last 30 turns
+    // Build AI context from full history (memory across days), capped to last 80 turns
     const aiHistory = [
-      ...allConversation.slice(-30).map(({ role, content }) => ({ role, content })),
+      ...allConversation.slice(-80).map(({ role, content }) => ({ role, content })),
       userMessage,
     ];
 

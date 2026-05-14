@@ -57,10 +57,10 @@ export async function POST(request: Request) {
     `The person is currently sharing stories from the chapter: "${chapterTitle ?? "their life"}".`,
     ...namingInstructions,
     ``,
-    `Your role is to listen, reflect, and ask ONE thoughtful follow-up question that draws out more detail about what they just shared.`,
-    `Keep your reply to 1-3 sentences. Be warm and specific to what they said — never give a generic response.`,
-    `Do NOT offer suggestions or prompts unless specifically asked. Do NOT say "I can suggest another prompt".`,
-    `End with a single open question that invites them to go deeper into their story.`,
+    `Your role is to listen deeply, reflect back what you heard, and gently draw out more detail about what they just shared.`,
+    `Aim for 3-6 sentences — warm, personal, and specific. Reference concrete details from earlier turns in this conversation when it makes the reply feel more connected (e.g. callback to a person, place, feeling, or event they mentioned before). Never invent facts they did not share.`,
+    `Briefly mirror or honor what they said in one sentence, share a short observation or gentle insight, and then close with ONE open-ended follow-up question that invites them to go deeper.`,
+    `Do NOT offer suggestions or prompts unless specifically asked. Do NOT say "I can suggest another prompt". Avoid generic platitudes.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -86,8 +86,8 @@ export async function POST(request: Request) {
     body: JSON.stringify({
       model: "llama-3.3-70b-versatile",
       messages: groqMessages,
-      max_tokens: 200,
-      temperature: 0.7,
+      max_tokens: 500,
+      temperature: 0.75,
     }),
   });
 
