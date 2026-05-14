@@ -144,6 +144,7 @@ export default function StudioWorkspace({
   const [voiceError, setVoiceError] = useState("");
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isMicPickerOpen, setIsMicPickerOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [chapterSearch, setChapterSearch] = useState("");
   const [showSuggestedChapterPicker, setShowSuggestedChapterPicker] = useState(false);
   const [selectedSuggestedTitles, setSelectedSuggestedTitles] = useState<string[]>(defaultStoryTitles.slice(0, 4));
@@ -1009,12 +1010,20 @@ export default function StudioWorkspace({
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-[#f7f5f1]">
-      <header className="border-b border-[#ece5dc] bg-white/70 px-6 py-3 backdrop-blur">
+      <header className="border-b border-[#ece5dc] bg-white/70 px-4 py-3 backdrop-blur sm:px-6">
         <div className="mx-auto flex max-w-full items-center justify-between">
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-3 text-sm">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              aria-label="Open menu"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#d7c9b8] bg-white text-lg text-[#7f6645] lg:hidden"
+            >
+              ☰
+            </button>
             <p className="font-semibold text-[#74a8a4]">MyLife Studio</p>
           </div>
-          <div className="flex items-center gap-3 text-xs text-[#857a6a]">
+          <div className="hidden items-center gap-3 text-xs text-[#857a6a] lg:flex">
             <span>Guide: {profile.name}</span>
             {voice?.trim() && (
               <span className="rounded-full bg-[#f2ebe2] px-2 py-1">
@@ -1115,7 +1124,7 @@ export default function StudioWorkspace({
                   <div className="w-full space-y-8 text-center">
                     {/* Last user message */}
                     {chatMessages.findLast((m) => m.role === "user") && (
-                      <p className="font-serif text-3xl italic leading-relaxed text-[#6c6255]">
+                      <p className="font-serif text-xl italic leading-relaxed text-[#6c6255] sm:text-3xl">
                         {chatMessages.findLast((m) => m.role === "user")!.content}
                       </p>
                     )}
@@ -1128,7 +1137,7 @@ export default function StudioWorkspace({
                         {isGuideThinking ? (
                           <p className="text-2xl text-[#b5a898] animate-pulse">&#8230;</p>
                         ) : (
-                          <p className="text-3xl leading-relaxed text-[#3f3328]">
+                          <p className="text-xl leading-relaxed text-[#3f3328] sm:text-3xl">
                             {chatMessages.findLast((m) => m.role === "guide")!.content}
                           </p>
                         )}
@@ -1266,7 +1275,7 @@ export default function StudioWorkspace({
                     onClick={() => void toggleRecording()}
                     aria-label={isRecording ? "Stop recording" : "Start recording"}
                     disabled={isTranscribing}
-                    className={`flex h-24 w-24 items-center justify-center rounded-full text-white shadow-lg transition-all ${
+                    className={`flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg transition-all sm:h-24 sm:w-24 ${
                       isRecording
                         ? "bg-[#7a1a10] hover:bg-[#5e140b] animate-pulse"
                         : isTranscribing
@@ -1274,7 +1283,7 @@ export default function StudioWorkspace({
                           : "bg-[#c2241a] hover:bg-[#a01a12]"
                     }`}
                   >
-                    <span className="text-5xl">{isRecording ? "⏹" : "🎤"}</span>
+                    <span className="text-3xl sm:text-5xl">{isRecording ? "⏹" : "🎤"}</span>
                   </button>
                   {isRecording && (
                     <span className="text-sm font-semibold text-[#a54136]">Recording: {formatTime(recordingTime)}</span>
@@ -1287,8 +1296,8 @@ export default function StudioWorkspace({
               </div>
             </div>
 
-            {/* Right sidebar: Vertical photo film strip */}
-            <aside className="flex w-32 flex-col border-l border-[#ece5dc] bg-[#f8f6f2] py-6">
+            {/* Right sidebar: Vertical photo film strip - hidden on mobile */}
+            <aside className="hidden w-32 flex-col border-l border-[#ece5dc] bg-[#f8f6f2] py-6 lg:flex">
               <h3 className="px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8e7f6f]">Photos</h3>
               
               <div className="mt-3 flex-1 space-y-2 overflow-y-auto px-2">
@@ -1319,6 +1328,93 @@ export default function StudioWorkspace({
           </div>
         </section>
       </div>
+
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div
+            className="relative flex h-full w-80 max-w-[85%] flex-col bg-[#f8f6f2] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[#ebe3d8] px-4 py-3">
+              <p className="font-semibold text-[#74a8a4]">Menu</p>
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(false)}
+                aria-label="Close menu"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[#7f6645] hover:bg-[#f0e9dd]"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              <input
+                type="text"
+                value={chapterSearch}
+                onChange={(event) => setChapterSearch(event.target.value)}
+                placeholder="Search stories..."
+                className="w-full rounded-xl border border-[#e5ddd2] bg-white px-3 py-2 text-sm text-[#6c6255] outline-none focus:ring-2 focus:ring-[#84b4b0]"
+              />
+              <div className="mt-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-[#5d564c]">Chapters</h2>
+                <button
+                  type="button"
+                  onClick={() => { void createNewChapter(); setIsMobileMenuOpen(false); }}
+                  className="rounded-full border border-[#86bdb6] bg-[#f0fbf9] px-3 py-1 text-xs font-semibold text-[#4f958c]"
+                >
+                  + New
+                </button>
+              </div>
+              <div className="mt-2 space-y-2">
+                {filteredChapters.map((chapter, index) => {
+                  const active = chapter.id === selectedChapterId;
+                  return (
+                    <button
+                      key={chapter.id}
+                      type="button"
+                      onClick={() => { setSelectedChapterId(chapter.id); setIsMobileMenuOpen(false); }}
+                      className={`w-full rounded-xl border bg-white px-3 py-2 text-left transition-colors ${
+                        active ? "border-[#84b4b0] shadow-[inset_3px_0_0_0_#84b4b0]" : "border-[#ebe3d7]"
+                      }`}
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#84b4b0]">Chapter {index + 1}</p>
+                      <p className="mt-0.5 line-clamp-2 font-serif text-base text-[#251d16]">{chapter.title}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <h2 className="mt-6 text-lg font-semibold text-[#5d564c]">Photos</h2>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {selectedChapter?.photos && selectedChapter.photos.length > 0 ? (
+                  selectedChapter.photos.map((photo, index) => (
+                    <button
+                      key={`${photo}-${index}`}
+                      type="button"
+                      onClick={() => { setSelectedPhotoPreview(photo); setIsMobileMenuOpen(false); }}
+                      className="overflow-hidden rounded-lg border border-[#d5b991] bg-white"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photo} alt="Chapter visual" className="aspect-square w-full object-cover" />
+                    </button>
+                  ))
+                ) : (
+                  <p className="col-span-3 text-xs text-[#8e7f6f]">No photos yet</p>
+                )}
+              </div>
+            </div>
+            <div className="border-t border-[#ebe3d8] px-4 py-3">
+              <button
+                type="button"
+                onClick={() => { setIsMobileMenuOpen(false); signOut(); }}
+                className="w-full rounded-full border border-[#d7c9b8] bg-white px-3 py-2 text-sm font-semibold text-[#7f6645]"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showSuggestedChapterPicker && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
