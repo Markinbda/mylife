@@ -453,9 +453,10 @@ export default function StudioWorkspace({
       } else {
         // Show a reminder of the last AI reply so the user can continue, but don't re-persist
         const lastGuide = [...fullHistory].reverse().find((m) => m.role === "guide");
+        const greeting = firstName ? `Hey ${firstName}, welcome back!` : "Welcome back!";
         const reentryContent = lastGuide
-          ? `The last thing we discussed was... ${lastGuide.content}`
-          : openingMessage;
+          ? `${greeting} Last time we were together we were talking about... ${lastGuide.content}`
+          : `${greeting} ${openingMessage}`;
         setChatMessages([{ role: "guide", content: reentryContent }]);
         // Read the recap aloud so the user hears where we left off
         void playGuideVoiceRef.current?.(reentryContent).catch(() => {});
@@ -467,7 +468,7 @@ export default function StudioWorkspace({
     return () => {
       active = false;
     };
-  }, [introOpeningMessage, openingMessage, persistConversationMessage, selectedChapterId, supabase, userId]);
+  }, [firstName, introOpeningMessage, openingMessage, persistConversationMessage, selectedChapterId, supabase, userId]);
 
   const appendEntryToChapter = async (entry: string) => {
     const trimmed = entry.trim();
