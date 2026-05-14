@@ -36,6 +36,18 @@ export default function LoginPage() {
       return;
     }
 
+    if (typeof window !== "undefined") {
+      const storedGuide = localStorage.getItem("mylife:guide:id");
+      const storedVoice = localStorage.getItem("mylife:elevenlabs:voiceId");
+      const storedVoiceName = localStorage.getItem("mylife:guide:voiceName");
+      if (storedGuide) {
+        const params = new URLSearchParams({ lane: "story", guide: storedGuide });
+        if (storedVoice) params.set("voice", storedVoice);
+        if (storedVoiceName) params.set("voiceName", storedVoiceName);
+        router.push(`/studio?${params.toString()}`);
+        return;
+      }
+    }
     router.push("/onboarding");
   };
 

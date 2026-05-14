@@ -81,10 +81,12 @@ const defaultStoryTitles = [
   "Travel and Adventure",
 ];
 
+const DEFAULT_OPENING = "Hi, I'm here to sit and talk with you about your life";
+
 const openingByGuide: Record<string, string> = {
-  teenager: "Let us keep this easy. Tell me a memory that still feels vivid today.",
-  housewife: "Let us anchor your story in time. Which year or life season should we expand?",
-  older_man: "Small steps count. What is one chapter detail you can add in the next two minutes?",
+  teenager: DEFAULT_OPENING,
+  housewife: DEFAULT_OPENING,
+  older_man: DEFAULT_OPENING,
 };
 
 const followUps = [
@@ -215,9 +217,8 @@ export default function StudioWorkspace({
   }, [displayName]);
 
   const openingMessage = useMemo(() => {
-    const base = openingByGuide[guide] ?? openingByGuide.teenager;
-    return firstName ? `${firstName}, ${base}` : base;
-  }, [firstName, guide]);
+    return openingByGuide[guide] ?? DEFAULT_OPENING;
+  }, [guide]);
 
   const persistConversationMessage = useCallback(
     async (chapterId: string, message: ChatMessage) => {
@@ -1128,6 +1129,13 @@ export default function StudioWorkspace({
             )}
             <button
               type="button"
+              onClick={() => { window.location.href = "/guides/age-select"; }}
+              className="rounded-full border border-[#d7c9b8] bg-white px-3 py-1.5 font-semibold text-[#7f6645]"
+            >
+              Change Guide
+            </button>
+            <button
+              type="button"
               onClick={signOut}
               className="rounded-full border border-[#d7c9b8] bg-white px-3 py-1.5 font-semibold text-[#7f6645]"
             >
@@ -1528,7 +1536,14 @@ export default function StudioWorkspace({
                 )}
               </div>
             </div>
-            <div className="border-t border-[#ebe3d8] px-4 py-3">
+            <div className="border-t border-[#ebe3d8] px-4 py-3 space-y-2">
+              <button
+                type="button"
+                onClick={() => { setIsMobileMenuOpen(false); window.location.href = "/guides/age-select"; }}
+                className="w-full rounded-full border border-[#d7c9b8] bg-white px-3 py-2 text-sm font-semibold text-[#7f6645]"
+              >
+                Change Guide
+              </button>
               <button
                 type="button"
                 onClick={() => { setIsMobileMenuOpen(false); signOut(); }}

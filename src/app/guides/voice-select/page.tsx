@@ -244,6 +244,11 @@ function VoiceSelectContent() {
     const params = new URLSearchParams({ lane: "story", guide: selected.id });
     if (effectiveVoiceId.trim()) params.set("voice", effectiveVoiceId.trim());
     if (selectedVoiceFromFiltered?.name) params.set("voiceName", selectedVoiceFromFiltered.name);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mylife:guide:id", selected.id);
+      if (effectiveVoiceId.trim()) localStorage.setItem("mylife:elevenlabs:voiceId", effectiveVoiceId.trim());
+      if (selectedVoiceFromFiltered?.name) localStorage.setItem("mylife:guide:voiceName", selectedVoiceFromFiltered.name);
+    }
     router.push(`/studio?${params.toString()}`);
   };
 
@@ -349,7 +354,7 @@ function VoiceSelectContent() {
             disabled={!selectedVoiceId}
             className="rounded-full bg-[#c9793d] px-7 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#b36d36] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Continue with {selected.name}
+            Continue
           </button>
         </div>
 
