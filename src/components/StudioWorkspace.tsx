@@ -147,6 +147,10 @@ export default function StudioWorkspace({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isChaptersExpanded, setIsChaptersExpanded] = useState(true);
   const [isPhotoMenuOpen, setIsPhotoMenuOpen] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
   const [chapterSearch, setChapterSearch] = useState("");
   const [showSuggestedChapterPicker, setShowSuggestedChapterPicker] = useState(false);
   const [selectedSuggestedTitles, setSelectedSuggestedTitles] = useState<string[]>(defaultStoryTitles.slice(0, 4));
@@ -661,14 +665,14 @@ export default function StudioWorkspace({
     }
   };
 
-  const handleUploadPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!supabase || !files || files.length === 0 || !userId || !selectedChapterId) return;
+  const uploadPhotoFiles = async (files: File[]) => {
+    if (!supabase || files.length === 0 || !userId || !selectedChapterId) return;
 
     const uploadedUrls: string[] = [];
 
-    for (const file of Array.from(files)) {
-      const path = `${userId}/${selectedChapterId}/${Date.now()}-${file.name.replaceAll(" ", "-")}`;
+    for (const file of files) {
+      const safeName = (file.name || "photo.jpg").replaceAll(" ", "-");
+      const path = `${userId}/${selectedChapterId}/${Date.now()}-${safeName}`;
       const upload = await supabase.storage.from("chapter-photos").upload(path, file, { upsert: false });
 
       if (upload.error) {
@@ -699,9 +703,64 @@ export default function StudioWorkspace({
         ),
       );
     }
+  };
 
+  const handleUploadPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    await uploadPhotoFiles(Array.from(files));
     event.target.value = "";
   };
+
+  const stopCameraStream = () => {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+    }
+  };
+
+  const openCamera = async () => {
+    setCameraError(null);
+    setIsCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      cameraStreamRef.current = stream;
+      if (cameraVideoRef.current) {
+        cameraVideoRef.current.srcObject = stream;
+        await cameraVideoRef.current.play().catch(() => {});
+      }
+    } catch (err) {
+      setCameraError(err instanceof Error ? err.message : "Unable to access camera");
+    }
+  };
+
+  const closeCamera = () => {
+    stopCameraStream();
+    setIsCameraOpen(false);
+    setCameraError(null);
+  };
+
+  const capturePhoto = async () => {
+    const video = cameraVideoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92),
+    );
+    if (!blob) return;
+    const file = new File([blob], `photo-${Date.now()}.jpg`, { type: "image/jpeg" });
+    await uploadPhotoFiles([file]);
+    closeCamera();
+  };
+
 
   const searchPexels = async () => {
     const term = pexelsQuery.trim();
@@ -1183,7 +1242,7 @@ export default function StudioWorkspace({
                       <div className="absolute bottom-12 left-1/2 z-20 flex -translate-x-1/2 flex-col gap-1 rounded-xl border border-[#e4dacd] bg-white p-2 shadow-lg">
                         <button
                           type="button"
-                          onClick={() => { setIsPhotoMenuOpen(false); cameraInputRef.current?.click(); }}
+                          onClick={() => { setIsPhotoMenuOpen(false); void openCamera(); }}
                           className="whitespace-nowrap rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-[#3f3328] hover:bg-[#faf6ef]"
                         >
                           📷 Take a picture
@@ -1562,6 +1621,53 @@ export default function StudioWorkspace({
               alt="Selected chapter visual"
               className="max-h-[90vh] max-w-[90vw] rounded-2xl border border-white/20 object-contain"
             />
+          </div>
+        </div>
+      )}
+
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-black">
+          <div className="flex items-center justify-between px-4 py-3 text-white">
+            <p className="font-semibold">Take a picture</p>
+            <button
+              type="button"
+              onClick={closeCamera}
+              aria-label="Close camera"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+            {cameraError ? (
+              <p className="px-6 text-center text-sm text-white">{cameraError}</p>
+            ) : (
+              <video
+                ref={cameraVideoRef}
+                playsInline
+                muted
+                className="h-full w-full object-contain"
+              />
+            )}
+          </div>
+          <div className="flex items-center justify-center gap-6 bg-black px-4 py-6">
+            <button
+              type="button"
+              onClick={closeCamera}
+              className="rounded-full border border-white/40 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void capturePhoto()}
+              aria-label="Capture"
+              disabled={!!cameraError}
+              className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-white bg-white shadow-lg disabled:opacity-40"
+            >
+              <span className="block h-12 w-12 rounded-full bg-[#c2241a]" />
+            </button>
+            <span className="w-[72px]" aria-hidden="true" />
           </div>
         </div>
       )}
