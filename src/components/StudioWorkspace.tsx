@@ -221,6 +221,11 @@ export default function StudioWorkspace({
     return openingByGuide[guide] ?? DEFAULT_OPENING;
   }, [guide]);
 
+  const introOpeningMessage = useMemo(() => {
+    if (firstName) return openingMessage;
+    return `${openingMessage}. Is it ok if I ask you what I should call you?`;
+  }, [firstName, openingMessage]);
+
   const persistConversationMessage = useCallback(
     async (chapterId: string, message: ChatMessage) => {
       if (!supabase || !userId || !chapterId) return;
@@ -442,7 +447,7 @@ export default function StudioWorkspace({
 
       // No messages today
       if (fullHistory.length === 0) {
-        const initialMessage = { role: "guide", content: openingMessage } as const;
+        const initialMessage = { role: "guide", content: introOpeningMessage } as const;
         setChatMessages([initialMessage]);
         await persistConversationMessage(selectedChapterId, initialMessage);
       } else {
@@ -462,7 +467,7 @@ export default function StudioWorkspace({
     return () => {
       active = false;
     };
-  }, [openingMessage, persistConversationMessage, selectedChapterId, supabase, userId]);
+  }, [introOpeningMessage, openingMessage, persistConversationMessage, selectedChapterId, supabase, userId]);
 
   const appendEntryToChapter = async (entry: string) => {
     const trimmed = entry.trim();
@@ -575,7 +580,24 @@ export default function StudioWorkspace({
       setIsGuideThinking(false);
     }
 
-    const guideMessage: ChatMessage = { role: "guide", content: replyText };
+    // Detect a captured preferred name in the reply: [[NAME:<name>]]
+    let cleanedReply = replyText;
+    const nameMatch = replyText.match(/\[\[NAME:\s*([^\]]+?)\s*\]\]/i);
+    if (nameMatch) {
+      const captured = nameMatch[1].trim().replace(/[.,!?;:]+$/g, "");
+      cleanedReply = replyText.replace(nameMatch[0], "").trim();
+      if (captured && captured.toLowerCase() !== firstName.toLowerCase()) {
+        setDisplayName(captured);
+        if (supabase && userId) {
+          await supabase
+            .from("profiles")
+            .update({ full_name: captured })
+            .eq("user_id", userId);
+        }
+      }
+    }
+
+    const guideMessage: ChatMessage = { role: "guide", content: cleanedReply };
     setChatMessages((prev) => [...prev, guideMessage]);
     await persistConversationMessage(selectedChapterId, guideMessage);
     try {

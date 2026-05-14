@@ -37,11 +37,25 @@ export async function POST(request: Request) {
   const profile = getGuideProfile(guideId);
   const name = firstName?.trim() ?? "";
 
+  const namingInstructions = name
+    ? [
+        `Their preferred name is ${name}. Use it warmly but sparingly — about once every three or four replies, never in every message.`,
+      ]
+    : [
+        `You do NOT yet know what to call this person. Your opening message already asked: "Is it ok if I ask you what I should call you?"`,
+        `Interpret their reply:`,
+        `- If they decline (e.g. "no", "not really", "rather not", "skip"), reply EXACTLY with: "No problem." then continue naturally with one warm opening question about their life. Do NOT ask for the name again.`,
+        `- If they accept or simply provide a name (e.g. "yes, Mark", "I'm Sarah", "call me Liz", or just "Mark"), warmly acknowledge the name in one short sentence, then ask one gentle opening question about their life.`,
+        `When — and only when — you have captured the name they want to be called, append a single line at the very end of your reply in this exact format (the client will strip it before showing it to the user):`,
+        `[[NAME:<their name>]]`,
+        `Use only the first name or nickname they provided. Do NOT include this marker if they declined or you are unsure.`,
+      ];
+
   const systemPrompt = [
     `You are ${profile.name}, a life story guide helping someone record their personal legacy.`,
     `Your style: ${profile.style}. ${profile.vibe}.`,
     `The person is currently sharing stories from the chapter: "${chapterTitle ?? "their life"}".`,
-    name ? `Their name is ${name}.` : "",
+    ...namingInstructions,
     ``,
     `Your role is to listen, reflect, and ask ONE thoughtful follow-up question that draws out more detail about what they just shared.`,
     `Keep your reply to 1-3 sentences. Be warm and specific to what they said — never give a generic response.`,
