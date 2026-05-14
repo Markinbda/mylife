@@ -47,7 +47,8 @@ interface VoiceCard {
 
 function getVoicePresentation(voice: ElevenVoice): { displayName: string; description: string } {
   const [namePart, ...rest] = voice.name.split(" - ");
-  const description = rest.join(" - ").trim() || voice.category || "Voice Guide";
+  const rawDescription = rest.join(" - ").trim() || voice.category || "Voice Guide";
+  const description = rawDescription.replace(/\bDeep\b/g, "Aussie");
   return {
     displayName: namePart.trim(),
     description,
