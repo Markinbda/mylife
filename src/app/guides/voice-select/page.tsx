@@ -35,46 +35,16 @@ const AGE_GROUP_OPTIONS: { id: AgeGroup; label: string; keywords: string[] }[] =
 
 interface VoiceCard {
   voice: ElevenVoice;
-  image: string;
-  gender: string;
+  displayName: string;
+  description: string;
 }
 
-const VOICE_NAME_IMAGE_MAP: Record<string, { image: string; gender: string }> = {
-  charlie: { image: "/images/voice-charlie.png", gender: "Male (Teenage Boy)" },
-  liam: { image: "/images/voice-liam.png", gender: "Male (Teenage Boy)" },
-  jessica: { image: "/images/voice-jessica.png", gender: "Female" },
-};
-const FEMALE_HINTS = ["jessica", "female", "woman", "girl", "mom", "mother", "housewife"];
-const MALE_HINTS = ["male", "man", "boy", "dad", "father"];
-
-function getVoicePresentation(voice: ElevenVoice): { image: string; gender: string } {
-  const normalizedName = voice.name.toLowerCase();
-  const searchableText = `${voice.name} ${voice.category ?? ""}`.toLowerCase();
-
-  const mappedByName = Object.entries(VOICE_NAME_IMAGE_MAP).find(([voiceName]) =>
-    normalizedName === voiceName || normalizedName.startsWith(`${voiceName} `) || normalizedName.includes(`${voiceName} -`),
-  )?.[1];
-  if (mappedByName) {
-    return mappedByName;
-  }
-
-  if (FEMALE_HINTS.some((hint) => searchableText.includes(hint))) {
-    return {
-      image: "/images/guide-coach.png",
-      gender: "Female",
-    };
-  }
-
-  if (MALE_HINTS.some((hint) => searchableText.includes(hint))) {
-    return {
-      image: "/images/guide-friend.png",
-      gender: "Male",
-    };
-  }
-
+function getVoicePresentation(voice: ElevenVoice): { displayName: string; description: string } {
+  const [namePart, ...rest] = voice.name.split(" - ");
+  const description = rest.join(" - ").trim() || voice.category || "Voice Guide";
   return {
-    image: "/images/guide-coach.png",
-    gender: "Voice Guide",
+    displayName: namePart.trim(),
+    description,
   };
 }
 
@@ -134,8 +104,8 @@ function VoiceSelectContent() {
         const presentation = getVoicePresentation(voice);
         return {
           voice,
-          image: presentation.image,
-          gender: presentation.gender,
+          displayName: presentation.displayName,
+          description: presentation.description,
         };
       }),
     [filteredVoices],
@@ -335,44 +305,27 @@ function VoiceSelectContent() {
                       setSelectedVoiceId(card.voice.id);
                     }
                   }}
-                  className={`group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border-2 transition-all ${
+                  className={`group relative flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 bg-white px-5 py-8 text-center transition-all ${
                     card.voice.id === effectiveVoiceId
                       ? "border-[#c9793d] shadow-lg"
                       : "border-[#e5ddd1] shadow-md hover:shadow-lg hover:border-[#d4c4b5]"
                   }`}
                 >
-                  {/* Image Container */}
-                  <div className="relative h-40 w-full overflow-hidden bg-gray-200">
-                    <Image
-                      src={card.image}
-                      alt={card.voice.name}
-                      fill
-                      className="object-cover transition-transform group-hover:scale-105"
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                    />
-                  </div>
+                  <h3 className="font-serif text-2xl font-bold text-[#1d140f]">{card.displayName}</h3>
+                  <p className="mt-2 text-sm text-[#7b6f60]">{card.description}</p>
 
-                  {/* Content Container */}
-                  <div className="flex flex-1 flex-col items-center justify-between bg-white px-4 py-6">
-                    <div>
-                      <h3 className="font-serif text-lg font-bold text-[#1d140f]">{card.voice.name}</h3>
-                      <p className="mt-1 text-xs text-[#8d7558]">{card.gender}</p>
-                    </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void playVoicePreview(card.voice.id);
+                    }}
+                    disabled={isPlaying}
+                    className="mt-5 rounded-full border border-[#c9783d] bg-white px-4 py-2 text-xs font-semibold text-[#84481f] transition-colors hover:bg-[#fff3e8] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isPlaying ? "Playing..." : "Preview"}
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void playVoicePreview(card.voice.id);
-                      }}
-                      disabled={isPlaying}
-                      className="mt-4 rounded-full border border-[#c9783d] bg-white px-4 py-2 text-xs font-semibold text-[#84481f] transition-colors hover:bg-[#fff3e8] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isPlaying ? "Playing..." : "Preview"}
-                    </button>
-                  </div>
-
-                  {/* Selection Indicator */}
                   {card.voice.id === effectiveVoiceId && (
                     <div className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#c9793d]">
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="2">
