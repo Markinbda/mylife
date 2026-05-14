@@ -15,6 +15,12 @@ type ElevenVoice = {
 
 type AgeGroup = "younger" | "mid_years" | "mature";
 
+const AGE_GROUP_IMAGE: Record<AgeGroup, string> = {
+  younger: "/images/guide-friend.png",
+  mid_years: "/images/sunset_over_ocean.png",
+  mature: "/images/beach-ocean.jpg",
+};
+
 const AGE_GROUP_OPTIONS: { id: AgeGroup; label: string; keywords: string[] }[] = [
   {
     id: "younger",
@@ -55,7 +61,7 @@ function VoiceSelectContent() {
 
   const ageParam = (searchParams.get("age") as AgeGroup) || "mid_years";
 
-  const [selectedId, setSelectedId] = useState(guideProfiles[0].id);
+  const [selectedId] = useState(guideProfiles[0].id);
   const [voices, setVoices] = useState<ElevenVoice[]>([]);
   const [voicesLoading, setVoicesLoading] = useState(true);
   const [voicesError, setVoicesError] = useState("");
@@ -256,35 +262,19 @@ function VoiceSelectContent() {
       </div>
 
       <div className="mt-6 flex w-full max-w-4xl flex-col items-center">
-        {/* Guide Avatar and Selection */}
+        {/* Age-group avatar */}
         <div className="relative h-48 w-48 rounded-full border-[6px] border-[#e4905d] p-1 shadow-[0_0_0_6px_#f4d8c2]">
-          <Image src={selected.avatar} alt={selected.name} fill className="rounded-full object-cover" sizes="192px" />
+          <Image
+            src={AGE_GROUP_IMAGE[ageParam] ?? AGE_GROUP_IMAGE.mid_years}
+            alt={ageGroupLabel}
+            fill
+            className="rounded-full object-cover"
+            sizes="192px"
+          />
         </div>
 
         <h1 className="mt-8 font-serif text-5xl font-bold text-[#1d140f]">Choose Your Guide Voice</h1>
         <p className="mt-2 text-lg text-[#5b4d42]">{ageGroupLabel} voices that match your guide</p>
-
-        {/* Guide Selection Buttons */}
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
-          {guideProfiles.map((guide) => (
-            <button
-              key={guide.id}
-              type="button"
-              onClick={() => setSelectedId(guide.id)}
-              className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
-                guide.id === selected.id
-                  ? "border-[#c9793d] bg-[#f8e5d6] text-[#7b451f]"
-                  : "border-[#ddd3c7] bg-white text-[#7d6f5d] hover:bg-[#f6efe7]"
-              }`}
-            >
-              {guide.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-5 max-w-3xl text-center font-serif text-[1.35rem] leading-[1.45] text-[#2f231b]">
-          <p>{selected.greeting}</p>
-        </div>
 
         {/* Voice Cards Grid */}
         <div className="mt-10 w-full max-w-4xl">
