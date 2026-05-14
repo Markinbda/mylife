@@ -495,8 +495,22 @@ export default function StudioWorkspace({
 
   const playGuideVoice = useCallback(
     async (text: string) => {
-      const script = text.trim();
-      if (!script) return;
+      const raw = text.trim();
+      if (!raw) return;
+
+      // Cap spoken text to keep ElevenLabs credit usage low. Prefer ending on
+      // sentence/clause boundary so the cut doesn't sound abrupt.
+      const MAX_TTS_CHARS = 280;
+      let script = raw;
+      if (raw.length > MAX_TTS_CHARS) {
+        const window = raw.slice(0, MAX_TTS_CHARS);
+        const lastBreak = Math.max(
+          window.lastIndexOf(". "),
+          window.lastIndexOf("? "),
+          window.lastIndexOf("! "),
+        );
+        script = lastBreak > 80 ? raw.slice(0, lastBreak + 1) : `${window.trimEnd()}…`;
+      }
 
       if (audioRef.current) {
         audioRef.current.pause();
@@ -515,7 +529,13 @@ export default function StudioWorkspace({
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(payload.error ?? "Could not play guide voice.");
+        const raw = payload.error ?? "";
+        if (/quota_exceeded|exceeds your quota/i.test(raw)) {
+          throw new Error(
+            "ElevenLabs voice credits are exhausted. Add credits or switch voice plan to restore narration.",
+          );
+        }
+        throw new Error(raw || "Could not play guide voice.");
       }
 
       const blob = await response.blob();
