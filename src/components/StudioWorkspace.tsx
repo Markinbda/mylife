@@ -1256,9 +1256,9 @@ export default function StudioWorkspace({
           <div className="flex min-h-0 flex-1 overflow-hidden">
             {/* Left: Conversation area */}
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-3 pt-6">
-              <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col items-center justify-center gap-10 py-8">
+              <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col items-center gap-10 overflow-y-auto py-8">
                 {chatMessages.length === 0 ? (
-                  <div className="space-y-6 text-center">
+                  <div className="my-auto space-y-6 text-center">
                     <p className="font-serif text-5xl leading-tight text-[#1f1711]">
                       {selectedChapter?.title ?? "Your chapter"}
                     </p>
@@ -1267,7 +1267,7 @@ export default function StudioWorkspace({
                     </p>
                   </div>
                 ) : (
-                  <div className="w-full space-y-8 text-center">
+                  <div className="my-auto w-full space-y-8 text-center">
                     {/* Last user message */}
                     {chatMessages.findLast((m) => m.role === "user") && (
                       <p className="font-serif text-xl italic leading-relaxed text-[#6c6255] sm:text-3xl">
