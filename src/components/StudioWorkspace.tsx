@@ -496,22 +496,8 @@ export default function StudioWorkspace({
 
   const playGuideVoice = useCallback(
     async (text: string) => {
-      const raw = text.trim();
-      if (!raw) return;
-
-      // Cap spoken text to keep ElevenLabs credit usage low. Prefer ending on
-      // sentence/clause boundary so the cut doesn't sound abrupt.
-      const MAX_TTS_CHARS = 280;
-      let script = raw;
-      if (raw.length > MAX_TTS_CHARS) {
-        const window = raw.slice(0, MAX_TTS_CHARS);
-        const lastBreak = Math.max(
-          window.lastIndexOf(". "),
-          window.lastIndexOf("? "),
-          window.lastIndexOf("! "),
-        );
-        script = lastBreak > 80 ? raw.slice(0, lastBreak + 1) : `${window.trimEnd()}…`;
-      }
+      const script = text.trim();
+      if (!script) return;
 
       if (audioRef.current) {
         audioRef.current.pause();
