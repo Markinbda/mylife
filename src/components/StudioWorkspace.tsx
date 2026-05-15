@@ -160,6 +160,8 @@ export default function StudioWorkspace({
   const [pexelsQuery, setPexelsQuery] = useState("");
   const [pexelsResults, setPexelsResults] = useState<string[]>([]);
   const [searchingPexels, setSearchingPexels] = useState(false);
+  const [isPexelsModalOpen, setIsPexelsModalOpen] = useState(false);
+  const [pexelsError, setPexelsError] = useState("");
   const [selectedPhotoPreview, setSelectedPhotoPreview] = useState<string | null>(null);
   const [showConversationHistory, setShowConversationHistory] = useState(false);
   const [historyMode, setHistoryMode] = useState<"today" | "previous" | "search">("today");
@@ -854,33 +856,76 @@ export default function StudioWorkspace({
   };
 
 
-  const searchPexels = async () => {
-    const term = pexelsQuery.trim();
+  const searchPexels = async (overrideTerm?: string) => {
+    const term = (overrideTerm ?? pexelsQuery).trim();
     if (!term) return;
 
-    const key = process.env.NEXT_PUBLIC_PEXELS_API_KEY;
-    if (!key) {
-      setPexelsResults([]);
-      return;
-    }
-
     setSearchingPexels(true);
+    setPexelsError("");
     try {
-      const res = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(term)}&per_page=6`, {
-        headers: { Authorization: key },
+      const res = await fetch("/api/pexels-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: term, perPage: 12 }),
       });
-      const data = await res.json();
-      const urls: string[] = Array.isArray(data?.photos)
-        ? data.photos
-            .map((photo: { src?: { medium?: string } }) => photo?.src?.medium)
-            .filter((url: string | undefined): url is string => Boolean(url))
-        : [];
+      const data = (await res.json().catch(() => ({}))) as {
+        photos?: { thumb?: string; full?: string }[];
+        error?: string;
+      };
+      if (!res.ok) {
+        setPexelsError(data.error ?? "Could not search Pexels.");
+        setPexelsResults([]);
+        return;
+      }
+      const urls = (data.photos ?? [])
+        .map((p) => p.full ?? p.thumb)
+        .filter((u): u is string => Boolean(u));
       setPexelsResults(urls);
+      if (urls.length === 0) setPexelsError("No images found. Try different keywords.");
     } catch {
+      setPexelsError("Could not reach Pexels right now.");
       setPexelsResults([]);
     } finally {
       setSearchingPexels(false);
     }
+  };
+
+  const buildPexelsKeywords = useCallback(() => {
+    // Pull a few distinctive words from the most recent user/guide messages
+    // to seed the image search with conversation-relevant keywords.
+    const recent = chatMessages.slice(-4).map((m) => m.content).join(" ");
+    const stop = new Set([
+      "the", "a", "an", "and", "or", "but", "of", "to", "in", "on", "at", "for", "with",
+      "from", "by", "as", "is", "are", "was", "were", "be", "been", "being", "have",
+      "has", "had", "do", "does", "did", "can", "could", "would", "should", "will",
+      "may", "might", "my", "your", "his", "her", "their", "our", "its", "this",
+      "that", "these", "those", "it", "i", "you", "he", "she", "we", "they", "me",
+      "him", "us", "them", "so", "if", "about", "what", "when", "where", "how",
+      "why", "who", "there", "here", "out", "up", "down", "into", "over", "under",
+      "like", "just", "some", "any", "all", "more", "most", "very", "really",
+      "also", "then", "than", "because", "while", "after", "before", "now", "still",
+      "yes", "no", "not", "too", "one", "two", "three", "tell", "talk", "say",
+      "said", "think", "feel", "make", "made", "go", "went", "get", "got", "name",
+    ]);
+    const counts = new Map<string, number>();
+    for (const raw of recent.toLowerCase().match(/[a-z][a-z'-]{2,}/g) ?? []) {
+      if (stop.has(raw)) continue;
+      counts.set(raw, (counts.get(raw) ?? 0) + 1);
+    }
+    const ranked = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)
+      .slice(0, 4)
+      .map(([w]) => w);
+    return ranked.join(" ");
+  }, [chatMessages]);
+
+  const openPexelsModal = () => {
+    const seed = buildPexelsKeywords() || (selectedChapter?.title ?? "").toLowerCase();
+    setPexelsQuery(seed);
+    setPexelsResults([]);
+    setPexelsError("");
+    setIsPexelsModalOpen(true);
+    if (seed) void searchPexels(seed);
   };
 
   const attachPexelsImage = async (url: string) => {
@@ -1352,6 +1397,13 @@ export default function StudioWorkspace({
                           className="whitespace-nowrap rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-[#3f3328] hover:bg-[#faf6ef]"
                         >
                           🖼️ Choose from library
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setIsPhotoMenuOpen(false); openPexelsModal(); }}
+                          className="whitespace-nowrap rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-[#3f3328] hover:bg-[#faf6ef]"
+                        >
+                          🌐 Search online
                         </button>
                       </div>
                     )}
@@ -1883,6 +1935,111 @@ export default function StudioWorkspace({
 
       {/* Hidden audio element for playback */}
       <audio ref={audioRef} className="hidden" />
+
+      {/* Pexels image search modal */}
+      {isPexelsModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setIsPexelsModalOpen(false)}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-3xl flex-col gap-4 rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-serif text-2xl text-[#1f1711]">Search online for photos</h3>
+                <p className="mt-1 text-sm text-[#7c6f5e]">
+                  Free images from Pexels. Keywords are seeded from your recent conversation.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPexelsModalOpen(false)}
+                aria-label="Close"
+                className="rounded-full border border-[#e4dacd] px-3 py-1 text-sm text-[#6c6255] hover:bg-[#faf6ef]"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void searchPexels();
+              }}
+            >
+              <input
+                type="text"
+                value={pexelsQuery}
+                onChange={(e) => setPexelsQuery(e.target.value)}
+                placeholder="e.g. New Zealand fields horses"
+                className="flex-1 rounded-xl border border-[#e4dacd] bg-[#fbfaf7] px-4 py-2 text-sm text-[#1f1711] focus:border-[#b89a75] focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={searchingPexels || !pexelsQuery.trim()}
+                className="rounded-xl border border-[#b89a75] bg-[#b89a75] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a0815c] disabled:opacity-50"
+              >
+                {searchingPexels ? "Searching…" : "Search"}
+              </button>
+            </form>
+
+            {pexelsError && (
+              <p className="rounded-lg border border-[#e6c8c8] bg-[#fbf2f2] px-3 py-2 text-sm text-[#8a4a4a]">
+                {pexelsError}
+              </p>
+            )}
+
+            <div className="flex-1 overflow-y-auto">
+              {pexelsResults.length === 0 && !searchingPexels && !pexelsError ? (
+                <p className="py-12 text-center text-sm text-[#9a8d7c]">
+                  Type keywords above and press Search to see images.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {pexelsResults.map((url) => (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={async () => {
+                        await attachPexelsImage(url);
+                        setIsPexelsModalOpen(false);
+                      }}
+                      className="group relative overflow-hidden rounded-xl border border-[#e4dacd] bg-[#f7f5f1] focus:outline-none focus:ring-2 focus:ring-[#b89a75]"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={pexelsQuery}
+                        className="h-32 w-full object-cover transition-transform group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white opacity-0 transition-opacity group-hover:opacity-100">
+                        Add to chapter
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <p className="text-[10px] text-[#9a8d7c]">
+              Photos provided by{" "}
+              <a
+                href="https://www.pexels.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-[#7c6f5e]"
+              >
+                Pexels
+              </a>
+              .
+            </p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
