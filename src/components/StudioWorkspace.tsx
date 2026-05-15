@@ -527,18 +527,33 @@ export default function StudioWorkspace({
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
+      const audio = new Audio();
+      audio.preload = "auto";
+      audio.src = url;
       audioRef.current = audio;
 
-      audio.onended = () => {
+      const cleanup = () => {
         URL.revokeObjectURL(url);
         if (audioRef.current === audio) audioRef.current = null;
       };
 
-      audio.onerror = () => {
-        URL.revokeObjectURL(url);
-        if (audioRef.current === audio) audioRef.current = null;
-      };
+      audio.onended = cleanup;
+      audio.onerror = cleanup;
+
+      // Wait for the full file to be buffered before starting playback so the
+      // browser doesn't stop early on a slow connection.
+      await new Promise<void>((resolve) => {
+        if (audio.readyState >= 4) {
+          resolve();
+          return;
+        }
+        const onReady = () => {
+          audio.removeEventListener("canplaythrough", onReady);
+          resolve();
+        };
+        audio.addEventListener("canplaythrough", onReady);
+        audio.load();
+      });
 
       await audio.play();
     },
